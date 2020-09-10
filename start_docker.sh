@@ -22,8 +22,13 @@ docker rm ${CONTAINER}
 # Run a container with the image we just built
 docker run \
     -d \
-    -v "$(pwd):/workspace" \
-    --net=host \
+    -v "$(pwd)/src:/workspace/src" \
+    -v "$(pwd)/DonkeySimLinux:/workspace/DonkeySimLinux" \
+    -v "$(pwd)/scripts:/workspace/scripts" \
+    -p 9091:9091 \
+    -p 8888:8888 \
+    -p 8887:8887 \
+    --hostname autodrive \
     ${DONKEY_ENV} \
     --name ${CONTAINER} \
     "${IMAGE_TAG}"

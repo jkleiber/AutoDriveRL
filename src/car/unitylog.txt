@@ -1,0 +1,4 @@
+Mono path[0] = '/workspace/DonkeySimLinux/donkey_sim_Data/Managed'
+Mono config path = '/workspace/DonkeySimLinux/donkey_sim_Data/MonoBleedingEdge/etc'
+Unable to load player prefs
+Desktop is 0 x 0 @ 0 Hz

@@ -26,11 +26,17 @@ RUN conda env create -f install/envs/ubuntu.yml
 SHELL ["conda", "run", "-n", "donkey", "/bin/bash", "-c"]
 RUN pip install -e .[pc]
 
-# Create the donkey car.
-RUN mkdir -p /workspace/car
-RUN donkey createcar --path /workspace/car
+# Create the donkey car gym.
+WORKDIR /workspace/third_party/
+RUN git clone https://github.com/tawnkramer/gym-donkeycar
+WORKDIR /workspace/third_party/gym-donkeycar
+RUN pip install -e .[gym-donkeycar]
 
 # Change back to project root.
 WORKDIR /workspace
+
+# Expose simulator ports
+EXPOSE 9091
+EXPOSE 8887
 
 CMD tail -f /dev/null
