@@ -4,7 +4,7 @@ import gym_donkeycar
 import numpy as np
 
 #%% SET UP ENVIRONMENT
-exe_path = f"./simulator/donkey.x86_64"
+exe_path = f"./simulator/donkey_sim.x86_64"
 port = 9091
 
 conf = { "exe_path" : exe_path, "port" : port, "host" : '127.0.0.1' }
