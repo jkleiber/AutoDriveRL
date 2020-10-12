@@ -8,6 +8,7 @@ verify_ssl = true
 [packages]
 gym-donkeycar = {editable = true, path = "./third_party/gym-donkeycar"}
 opencv-python = "*"
+torch = "*"
 
 [requires]
 python_version = "3.8"
