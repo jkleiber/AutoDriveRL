@@ -42,9 +42,9 @@ def train(agent, num_episodes, time_limit):
             agent.update(old_obsv, action, reward, obsv, done)
 
             # Show what the agent sees.
-            cv2.imshow('DonkeyCar Camera', obsv)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
+            # cv2.imshow('DonkeyCar Camera', obsv)
+            # if cv2.waitKey(1) & 0xFF == ord('q'):
+            #     break
 
             # Update reward
             total_reward += reward
@@ -61,7 +61,7 @@ def train(agent, num_episodes, time_limit):
 # Main function for training
 if __name__ == "__main__":
     # Choose you agent here.
-    agent = SoftActorCriticAgent(env.observation_space.shape, env.action_space.shape)
+    agent = SoftActorCriticAgent()
 
     # Train the agent
     train(agent, 5, 100)
