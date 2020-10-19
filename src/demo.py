@@ -42,15 +42,18 @@ def demo(agent, time_limit):
         # Increment time
         t += 1
 
+    print(f'Demonstration ended after {t} steps, Total Reward: {total_reward}')
+
     # Close the environment after the number of episodes
     env.close()
 
 # Main function for training
 if __name__ == "__main__":
     # Choose you agent here.
-    agent = Agent()
-    # You could load agent from saved weights for example
-    # or we could add a main.py that trains and then runs the demo after
+    agent = SoftActorCriticAgent()
+
+    # Load from saved weights
+    agent.init_with_saved_weights()
 
     # Show off the agent's abilities
     demo(agent, 100)

@@ -15,3 +15,6 @@ class Agent:
 
     def save_weights(self):
         pass
+
+    def init_with_saved_weights(self):
+        pass

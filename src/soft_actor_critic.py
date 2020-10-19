@@ -187,6 +187,19 @@ class SoftActorCriticAgent(Agent):
         torch.save(self.target_net_1.state_dict(), self.save_path + 'sac_target1.net')
         torch.save(self.target_net_2.state_dict(), self.save_path + 'sac_target2.net')
 
+    def init_with_saved_weights(self):
+        self.policy_network.load_state_dict(torch.load(self.save_path + 'sac_policy.net'))
+        self.q_network_1.load_state_dict(torch.load(self.save_path + 'sac_q1.net'))
+        self.q_network_2.load_state_dict(torch.load(self.save_path + 'sac_q2.net'))
+        self.target_net_1.load_state_dict(torch.load(self.save_path + 'sac_target1.net'))
+        self.target_net_2.load_state_dict(torch.load(self.save_path + 'sac_target2.net'))
+
+        self.policy_network.eval()
+        self.q_network_1.eval()
+        self.q_network_2.eval()
+        self.target_net_1.eval()
+        self.target_net_2.eval()
+
 class PolicyNetwork(nn.Module):
     def __init__(self):
         super(PolicyNetwork, self).__init__()
