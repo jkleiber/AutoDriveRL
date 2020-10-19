@@ -27,6 +27,7 @@ def train(agent, num_episodes, time_limit):
         while done is False and t <= time_limit:
             # Let the agent determine its action given the current observation
             action = agent.act(obsv)
+            old_obsv = obsv
 
             # Execute the action and receive information back about the environment
             # obsv: vehicle front camera observation
@@ -37,9 +38,13 @@ def train(agent, num_episodes, time_limit):
             # Note: you can customize reward function with `env.set_reward_fn()`
             obsv, reward, done, info = env.step(action)
 
-            cv2.imshow('DonkeyCar Camera', obsv)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
+            # Update the agent with this new experience.
+            agent.update(old_obsv, action, reward, obsv, done)
+
+            # Show what the agent sees.
+            # cv2.imshow('DonkeyCar Camera', obsv)
+            # if cv2.waitKey(1) & 0xFF == ord('q'):
+            #     break
 
             # Update reward
             total_reward += reward
@@ -50,6 +55,9 @@ def train(agent, num_episodes, time_limit):
         # Print results of the episode
         print(f'Episode {e} over after {t} steps, Total Reward: {total_reward}')
 
+    # Save the agent's data
+    agent.save_weights()
+
     # Close the environment after the number of episodes
     env.close()
 
@@ -59,4 +67,4 @@ if __name__ == "__main__":
     agent = SoftActorCriticAgent()
 
     # Train the agent
-    train(agent, 5, 100)
+    train(agent, 100, 100)
