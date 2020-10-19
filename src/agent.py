@@ -12,3 +12,6 @@ class Agent:
 
     def update(self, old_obsv, action, reward, new_obsv, is_crashed):
         pass
+
+    def save_weights(self):
+        pass

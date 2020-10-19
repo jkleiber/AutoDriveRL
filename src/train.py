@@ -55,6 +55,9 @@ def train(agent, num_episodes, time_limit):
         # Print results of the episode
         print(f'Episode {e} over after {t} steps, Total Reward: {total_reward}')
 
+    # Save the agent's data
+    agent.save_weights()
+
     # Close the environment after the number of episodes
     env.close()
 
@@ -64,4 +67,4 @@ if __name__ == "__main__":
     agent = SoftActorCriticAgent()
 
     # Train the agent
-    train(agent, 5, 100)
+    train(agent, 100, 100)
