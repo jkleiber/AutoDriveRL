@@ -1,7 +1,6 @@
 
 import os
 import gym
-import gym_donkeycar
 import numpy as np
 
 from agent import Agent
