@@ -20,12 +20,13 @@ def demo(agent, time_limit):
     obsv = env.reset()
     done = False
     total_reward = 0
+    action = np.array([0, 0])
     t = 0
 
     # Run until the car drives off course or a time limit is reached
     while done is False and t <= time_limit:
         # Let the agent determine its action given the current observation
-        action = agent.act(obsv)
+        action, _ = agent.act(obsv, action)
 
         # Execute the action and receive information back about the environment
         # obsv: vehicle front camera observation

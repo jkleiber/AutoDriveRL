@@ -12,7 +12,7 @@ from torch import optim
 from agent import Agent
 
 class SoftActorCriticAgent(Agent):
-    def __init__(self, batch_size=128, alpha_lr=0.01, soft_q_lr = 1e-2, policy_lr = 0.005, tau = 0.05, gamma = 0.95, eps = 1e-6, alpha = 0.45, max_replay_size = 100000, save_path = 'soft_actor_critic/'):
+    def __init__(self, batch_size=64, alpha_lr=1e-4, soft_q_lr = 1e-4, policy_lr = 1e-4, tau = 0.005, gamma = 0.99, eps = 1e-6, alpha = 0.4, max_replay_size = 30000, save_path = 'soft_actor_critic/'):
         # See if we can do GPU training
         self.cuda_available = torch.cuda.is_available()
         self.device = torch.device("cuda" if self.cuda_available else "cpu")
@@ -48,7 +48,7 @@ class SoftActorCriticAgent(Agent):
 
         # Update step tracker
         self.update_step = 0
-        self.update_interval = 1
+        self.update_interval = 0
 
         # Hyperparameters
         self.policy_lr = policy_lr
@@ -61,7 +61,7 @@ class SoftActorCriticAgent(Agent):
         # Save path
         self.save_path = os.getcwd() + '/' + save_path
 
-    def act(self, obsv):
+    def act(self, obsv, cur_action):
         # Convert the observed state to a torch tensor
         input_data = np.copy(obsv)
         input_data.setflags(write=1)
@@ -74,10 +74,15 @@ class SoftActorCriticAgent(Agent):
         mean, std = self.policy_network(obsv_tensor[None, ...])
 
         # Decode the action from the given distribution estimate
-        action = self.decode_action(mean, std)
-        action = action.detach().numpy()
+        raw_action = self.decode_action(mean, std)
+        raw_action = raw_action.detach().numpy()
 
-        return action
+        # scale action to be between 0 and 1
+        action = raw_action
+        action[1] = 0.5 * action[1] + 0.5
+        action[0] = cur_action[0] + 0.2*(action[0] - cur_action[0])
+
+        return action, raw_action
 
     def decode_action(self, mean, std):
         z_sample = torch.distributions.Normal(mean, std).sample()
@@ -217,7 +222,6 @@ class SoftActorCriticAgent(Agent):
         self.q_network_2.eval()
         self.target_net_1.eval()
         self.target_net_2.eval()
-        self.log_alpha.eval()
         self.alpha = self.log_alpha.exp()
 
 class PolicyNetwork(nn.Module):

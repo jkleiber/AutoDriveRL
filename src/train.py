@@ -21,38 +21,41 @@ def reward_fn(action, info, crashed):
     lane_pos = info['cte']
     hit = info['hit']
     throttle = action[1]
-    max_cte = 5.0
+    max_cte = 1.5
 
     # If the car crashes, return punishment
     if crashed or hit != "none":
-        return -1.0
+        return -(5.0 + throttle * 0.25)
     # If out of bounds, return punishment
     if fabs(lane_pos) > max_cte:
-        return -1.0
-    # Don't reward backward driving
-    if throttle < 0.0:
-        return -0.5
+        return -(5.0 + throttle * 0.25)
 
     # If the car is driving normally, encourage driving fast in the center
     lane_reward = (1.0 - fabs(lane_pos) / max_cte)
-    reward = lane_reward * speed * 0.1
+    reward = 10*lane_reward + 0.1 * speed
     # reward = speed * (0.1 / (fabs(1.0 - lane_reward) + 0.1))
+
+    # reward = 1.0 + throttle * 0.1
 
     return reward
 
 def train(agent, num_episodes, time_limit):
+    # Keep track of reward per episode
+    rewards = []
+
     # Run the agent for a number of episodes
     for e in range(num_episodes):
         # Reset environment and simulation
         obsv = env.reset()
         done = False
         total_reward = 0
+        action = np.array([0, 0])
         t = 0
 
         # Run until the car drives off course or a time limit is reached
         while done is False and t <= time_limit:
             # Let the agent determine its action given the current observation
-            action = agent.act(obsv)
+            action, raw_action = agent.act(obsv, action)
             old_obsv = obsv
 
             # Execute the action and receive information back about the environment
@@ -65,8 +68,12 @@ def train(agent, num_episodes, time_limit):
             # Calculate custom reward
             reward = reward_fn(action, info, done)
 
+            # End episode if the car has failed miserably
+            if reward < 0:
+                done = True
+
             # Update the agent with this new experience.
-            agent.add_experience(old_obsv, action, reward, obsv, done)
+            agent.add_experience(old_obsv, raw_action, reward, obsv, done)
 
             # Show what the agent sees.
             # cv2.imshow('DonkeyCar Camera', obsv)
@@ -87,6 +94,9 @@ def train(agent, num_episodes, time_limit):
         # Print results of the episode
         print(f'Episode {e} over after {t} steps, Total Reward: {total_reward}')
 
+        # Track the reward
+        rewards.append(total_reward)
+
         # Update the agent
         agent.update()
 
@@ -95,6 +105,8 @@ def train(agent, num_episodes, time_limit):
 
     # Close the environment after the number of episodes
     env.close()
+
+    # TODO: Plot the reward function
 
 # Main function for training
 if __name__ == "__main__":
