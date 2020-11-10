@@ -55,6 +55,9 @@ class DonkeyUnitySimContoller():
     def reset(self):
         self.handler.reset()
 
+    def set_position(self, x, y, z=0.0):
+        self.handler.set_position(x, y, z)
+
     def get_sensor_size(self):
         return self.handler.get_sensor_size()
 
@@ -182,6 +185,10 @@ class DonkeyUnitySimHandler(IMesgHandler):
         self.missed_checkpoint = False
         self.dq = False
 
+    def set_position(self, x, y, z=0.0):
+        self.x = x
+        self.y = y
+        self.z = z
 
     def get_sensor_size(self):
         return self.camera_img_size
@@ -225,7 +232,7 @@ class DonkeyUnitySimHandler(IMesgHandler):
 
         if self.hit != "none":
             return -2.0
-        
+
         # going fast close to the center of lane yeilds best reward
         return (1.0 - (math.fabs(self.cte) / self.max_cte)) * self.speed
 
@@ -259,7 +266,7 @@ class DonkeyUnitySimHandler(IMesgHandler):
 
         self.determine_episode_over()
 
-    def on_cross_start(self, data):        
+    def on_cross_start(self, data):
         logger.info(f"crossed start line: lap_time {data['lap_time']}")
 
     def on_race_start(self, data):

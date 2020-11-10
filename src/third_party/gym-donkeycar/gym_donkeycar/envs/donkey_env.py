@@ -122,6 +122,13 @@ class DonkeyEnv(gym.Env):
         time.sleep(1)
         return observation
 
+    def set_position(self, x, y, z=0.0):
+        """ THIS DOESN'T DO ANYTHING YET """
+        self.viewer.set_position(x, y, z)
+        observation, reward, done, info = self.viewer.observe()
+        time.sleep(1)
+        return observation
+
     def render(self, mode="human", close=False):
         if close:
             self.viewer.quit()
