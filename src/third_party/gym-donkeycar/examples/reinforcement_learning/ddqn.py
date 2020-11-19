@@ -10,11 +10,12 @@ import random
 import argparse
 import signal
 import uuid
+import math
 
 import numpy as np
 import gym
 import cv2
-
+import ImgAug
 
 from collections import deque
 from tensorflow.keras.optimizers import Adam
@@ -27,9 +28,9 @@ from tensorflow.keras import backend as K
 import gym_donkeycar
 
 EPISODES = 10000
-img_rows, img_cols = 80, 80
+img_rows, img_cols = 32, 32
 # Convert image into Black and white
-img_channels = 4 # We stack 4 frames
+img_channels = 16 # We stack 4 frames
 
 class DQNAgent:
 
@@ -53,12 +54,12 @@ class DQNAgent:
             self.epsilon = 1e-6
             self.initial_epsilon = 1e-6
         self.epsilon_min = 0.02
-        self.batch_size = 64
+        self.batch_size = 32
         self.train_start = 100
-        self.explore = 10000
+        self.explore = 8000
 
         # Create replay memory using deque
-        self.memory = deque(maxlen=10000)
+        self.memory = deque(maxlen=5000)
 
         # Create main model and target model
         self.model = self.build_model()
@@ -102,7 +103,7 @@ class DQNAgent:
 
 
     def process_image(self, obs):
-        obs = self.rgb2gray(obs)
+        #obs = self.rgb2gray(obs)
         obs = cv2.resize(obs, (img_rows, img_cols))
         return obs
 
@@ -113,6 +114,7 @@ class DQNAgent:
     # Get action from model using epsilon-greedy policy
     def get_action(self, s_t):
         if np.random.rand() <= self.epsilon:
+            print('random')
             return self.action_space.sample()[0]
         else:
             #print("Return Max Q Prediction")
@@ -241,6 +243,42 @@ def run_ddqn(args):
 
     # Construct gym environment. Starts the simulator if path is given.
     env = gym.make(args[argsEnvNameIdx], conf=conf)
+    last = [0,0,0,0]
+    def calc_reward(self, d):
+        if d:
+            return -1.0
+
+        if self.cte > self.max_cte:
+            return -1.0
+
+        if self.hit != "none":
+            return -2.0
+
+        # going fast close to the center of lane yeilds best reward
+        if self.cte== 0:
+            return 0
+        #print(last)
+        delCte = self.cte - last[0]
+        delAbsCte = abs(last[0]) - abs(self.cte)
+        distDelta = np.linalg.norm(np.array([self.x,self.y,self.z])-np.array([last[1],last[2],last[3]]))
+        headErr = np.rad2deg(np.arcsin(delCte/distDelta))
+
+        if headErr == 0:
+            headErr = .001
+        if np.isnan(headErr):
+            headErr = 1000
+        #print('heading err' + str(headErr))
+        last[0] = self.cte
+        last[1] = self.x
+        last[2] = self.y
+        last[3] = self.z
+
+        # if headErr > 45:
+        #     return -1000
+        #return delAbsCte
+        return 10-abs(headErr) +min(100,1/abs(max(.01,.1*self.cte**2))) #+ 10/abs(headErr) #derivitive of cte like heading error
+
+    env.set_reward_fn(calc_reward)
 
     # not working on windows...
     def signal_handler(signal, frame):
@@ -276,9 +314,11 @@ def run_ddqn(args):
 
             episode_len = 0
 
+            #obs = ImgAug.preProcessRGB(obs)
+            obs = ImgAug.detectYellow(obs)
             x_t = agent.process_image(obs)
 
-            s_t = np.stack((x_t,x_t,x_t,x_t),axis=2)
+            s_t = np.stack([x_t for x in range(img_channels)],axis=2)
             # In Keras, need to reshape
             s_t = s_t.reshape(1, s_t.shape[0], s_t.shape[1], s_t.shape[2]) #1*80*80*4
 
@@ -287,12 +327,16 @@ def run_ddqn(args):
                 # Get action for the current state and go one step in environment
                 steering = agent.get_action(s_t)
                 action = [steering, throttle]
+                # print(action)
                 next_obs, reward, done, info = env.step(action)
+                print(reward)
 
+                #next_obs = ImgAug.preProcessRGB(next_obs)
+                next_obs = ImgAug.detectYellow(next_obs)
                 x_t1 = agent.process_image(next_obs)
 
                 x_t1 = x_t1.reshape(1, x_t1.shape[0], x_t1.shape[1], 1) #1x80x80x1
-                s_t1 = np.append(x_t1, s_t[:, :, :, :3], axis=3) #1x80x80x4
+                s_t1 = np.append(x_t1, s_t[:, :, :, :img_channels-1], axis=3) #1x80x80x4
 
                 # Save the sample <s, a, r, s'> to the replay memory
                 agent.replay_memory(s_t, np.argmax(linear_bin(steering)), reward, s_t1, done)
@@ -321,6 +365,12 @@ def run_ddqn(args):
 
                     print("episode:", e, "  memory length:", len(agent.memory),
                         "  epsilon:", agent.epsilon, " episode length:", episode_len)
+
+                    if e % 10 == 0:
+                        # give random new env [stop overfit I think]
+                        env.unwrapped.close()
+                        env = gym.make(args[argsEnvNameIdx], conf=conf)
+                        env.set_reward_fn(calc_reward)
 
 
     except KeyboardInterrupt:

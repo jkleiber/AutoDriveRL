@@ -225,7 +225,7 @@ class DonkeyUnitySimHandler(IMesgHandler):
 
         if self.hit != "none":
             return -2.0
-        
+
         # going fast close to the center of lane yeilds best reward
         return (1.0 - (math.fabs(self.cte) / self.max_cte)) * self.speed
 
@@ -250,6 +250,7 @@ class DonkeyUnitySimHandler(IMesgHandler):
         # It should be setup in the 4 scenes available now.
         if "cte" in data:
             self.cte = data["cte"]
+            # print(self.cte)
 
         # don't update hit once session over
         if self.over:
@@ -259,7 +260,7 @@ class DonkeyUnitySimHandler(IMesgHandler):
 
         self.determine_episode_over()
 
-    def on_cross_start(self, data):        
+    def on_cross_start(self, data):
         logger.info(f"crossed start line: lap_time {data['lap_time']}")
 
     def on_race_start(self, data):
