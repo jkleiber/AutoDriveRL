@@ -10,34 +10,27 @@ import random
 import argparse
 import signal
 import uuid
+import math
 
 import numpy as np
 import gym
 import cv2
-
-import skimage as skimage
-from skimage import transform, color, exposure
-from skimage.transform import rotate
-from skimage.viewer import ImageViewer
+import ImgAug
 
 from collections import deque
-from tensorflow.keras.layers import Dense
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.initializers import normal, identity
-from tensorflow.keras.models import model_from_json
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Dropout, Activation, Flatten
-from tensorflow.keras.layers import Conv2D, MaxPooling2D
+from tensorflow.keras.layers import Dense, Activation, Flatten
+from tensorflow.keras.layers import Conv2D
 import tensorflow as tf
 from tensorflow.keras import backend as K
 
 import gym_donkeycar
 
 EPISODES = 10000
-img_rows, img_cols = 80, 80
+img_rows, img_cols = 32, 32
 # Convert image into Black and white
-img_channels = 4 # We stack 4 frames
+img_channels = 16 # We stack 4 frames
 
 class DQNAgent:
 
@@ -45,7 +38,7 @@ class DQNAgent:
         self.t = 0
         self.max_Q = 0
         self.train = train
-        
+
         # Get size of state and action
         self.state_size = state_size
         self.action_space = action_space
@@ -61,12 +54,12 @@ class DQNAgent:
             self.epsilon = 1e-6
             self.initial_epsilon = 1e-6
         self.epsilon_min = 0.02
-        self.batch_size = 64
+        self.batch_size = 32
         self.train_start = 100
-        self.explore = 10000
+        self.explore = 8000
 
         # Create replay memory using deque
-        self.memory = deque(maxlen=10000)
+        self.memory = deque(maxlen=5000)
 
         # Create main model and target model
         self.model = self.build_model()
@@ -94,11 +87,11 @@ class DQNAgent:
         model.add(Activation('relu'))
 
         # 15 categorical bins for Steering angles
-        model.add(Dense(15, activation="linear")) 
+        model.add(Dense(15, activation="linear"))
 
         adam = Adam(lr=self.learning_rate)
         model.compile(loss='mse',optimizer=adam)
-        
+
         return model
 
 
@@ -110,10 +103,10 @@ class DQNAgent:
 
 
     def process_image(self, obs):
-        obs = self.rgb2gray(obs)
+        #obs = self.rgb2gray(obs)
         obs = cv2.resize(obs, (img_rows, img_cols))
         return obs
-        
+
 
     def update_target_model(self):
         self.target_model.set_weights(self.model.get_weights())
@@ -121,7 +114,8 @@ class DQNAgent:
     # Get action from model using epsilon-greedy policy
     def get_action(self, s_t):
         if np.random.rand() <= self.epsilon:
-            return self.action_space.sample()[0]       
+            print('random')
+            return self.action_space.sample()[0]
         else:
             #print("Return Max Q Prediction")
             q_value = self.model.predict(s_t)
@@ -142,7 +136,7 @@ class DQNAgent:
     def train_replay(self):
         if len(self.memory) < self.train_start:
             return
-        
+
         batch_size = min(self.batch_size, len(self.memory))
         minibatch = random.sample(self.memory, batch_size)
 
@@ -217,14 +211,21 @@ def run_ddqn(args):
     '''
 
     # only needed if TF==1.13.1
-    config = tf.ConfigProto()
+    config = tf.compat.v1.ConfigProto()
     config.gpu_options.allow_growth = True
-    sess = tf.Session(config=config)
-    K.set_session(sess)
+    tf.compat.v1.keras.backend.set_session(tf.compat.v1.Session(config=config));
+    # sess = tf.compat.v1.Session(config=config)
+    # K.set_session(sess)
+    argsSimIdx = 0
+    argsWeightPathIdx =1
+    argsTestBoolIdx = 2
+    argsportIdx = 3
+    argsThrottleIdx = 4
+    argsEnvNameIdx = 5
 
-    conf = {"exe_path" : args.sim, 
+    conf = {"exe_path" : args[argsSimIdx],
         "host" : "127.0.0.1",
-        "port" : args.port,
+        "port" : args[argsportIdx],
 
         "body_style" : "donkey",
         "body_rgb" : (128, 128, 128),
@@ -238,10 +239,46 @@ def run_ddqn(args):
 
         "max_cte" : 10,
         }
-    
+
 
     # Construct gym environment. Starts the simulator if path is given.
-    env = gym.make(args.env_name, conf=conf)
+    env = gym.make(args[argsEnvNameIdx], conf=conf)
+    last = [0,0,0,0]
+    def calc_reward(self, d):
+        if d:
+            return -1.0
+
+        if self.cte > self.max_cte:
+            return -1.0
+
+        if self.hit != "none":
+            return -2.0
+
+        # going fast close to the center of lane yeilds best reward
+        if self.cte== 0:
+            return 0
+        #print(last)
+        delCte = self.cte - last[0]
+        delAbsCte = abs(last[0]) - abs(self.cte)
+        distDelta = np.linalg.norm(np.array([self.x,self.y,self.z])-np.array([last[1],last[2],last[3]]))
+        headErr = np.rad2deg(np.arcsin(delCte/distDelta))
+
+        if headErr == 0:
+            headErr = .001
+        if np.isnan(headErr):
+            headErr = 1000
+        #print('heading err' + str(headErr))
+        last[0] = self.cte
+        last[1] = self.x
+        last[2] = self.y
+        last[3] = self.z
+
+        # if headErr > 45:
+        #     return -1000
+        #return delAbsCte
+        return 10-abs(headErr) +min(100,1/abs(max(.01,.1*self.cte**2))) #+ 10/abs(headErr) #derivitive of cte like heading error
+
+    env.set_reward_fn(calc_reward)
 
     # not working on windows...
     def signal_handler(signal, frame):
@@ -258,15 +295,15 @@ def run_ddqn(args):
     action_space = env.action_space # Steering and Throttle
 
     try:
-        agent = DQNAgent(state_size, action_space, train=not args.test)
+        agent = DQNAgent(state_size, action_space, train=not args[argsTestBoolIdx])
 
-        throttle = args.throttle # Set throttle as constant value
+        throttle = args[argsThrottleIdx] # Set throttle as constant value
 
         episodes = []
 
-        if os.path.exists(args.model):
+        if os.path.exists(args[argsWeightPathIdx]):
             print("load the saved model")
-            agent.load_model(args.model)
+            agent.load_model(args[argsWeightPathIdx])
 
         for e in range(EPISODES):
 
@@ -276,24 +313,30 @@ def run_ddqn(args):
             obs = env.reset()
 
             episode_len = 0
-        
+
+            #obs = ImgAug.preProcessRGB(obs)
+            obs = ImgAug.detectYellow(obs)
             x_t = agent.process_image(obs)
 
-            s_t = np.stack((x_t,x_t,x_t,x_t),axis=2)
+            s_t = np.stack([x_t for x in range(img_channels)],axis=2)
             # In Keras, need to reshape
-            s_t = s_t.reshape(1, s_t.shape[0], s_t.shape[1], s_t.shape[2]) #1*80*80*4       
-            
+            s_t = s_t.reshape(1, s_t.shape[0], s_t.shape[1], s_t.shape[2]) #1*80*80*4
+
             while not done:
 
                 # Get action for the current state and go one step in environment
                 steering = agent.get_action(s_t)
                 action = [steering, throttle]
+                # print(action)
                 next_obs, reward, done, info = env.step(action)
+                print(reward)
 
+                #next_obs = ImgAug.preProcessRGB(next_obs)
+                next_obs = ImgAug.detectYellow(next_obs)
                 x_t1 = agent.process_image(next_obs)
 
                 x_t1 = x_t1.reshape(1, x_t1.shape[0], x_t1.shape[1], 1) #1x80x80x1
-                s_t1 = np.append(x_t1, s_t[:, :, :, :3], axis=3) #1x80x80x4
+                s_t1 = np.append(x_t1, s_t[:, :, :, :img_channels-1], axis=3) #1x80x80x4
 
                 # Save the sample <s, a, r, s'> to the replay memory
                 agent.replay_memory(s_t, np.argmax(linear_bin(steering)), reward, s_t1, done)
@@ -314,14 +357,20 @@ def run_ddqn(args):
                     agent.update_target_model()
 
                     episodes.append(e)
-                    
+
 
                     # Save model for each episode
                     if agent.train:
-                        agent.save_model(args.model)
+                        agent.save_model(args[argsWeightPathIdx])
 
                     print("episode:", e, "  memory length:", len(agent.memory),
                         "  epsilon:", agent.epsilon, " episode length:", episode_len)
+
+                    if e % 10 == 0:
+                        # give random new env [stop overfit I think]
+                        env.unwrapped.close()
+                        env = gym.make(args[argsEnvNameIdx], conf=conf)
+                        env.set_reward_fn(calc_reward)
 
 
     except KeyboardInterrupt:
@@ -333,7 +382,7 @@ def run_ddqn(args):
 if __name__ == "__main__":
 
     # Initialize the donkey environment
-    # where env_name one of:    
+    # where env_name one of:
     env_list = [
        "donkey-warehouse-v0",
        "donkey-generated-roads-v0",
@@ -353,6 +402,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     run_ddqn(args)
-    
+
 
 

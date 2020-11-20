@@ -257,6 +257,7 @@ class DonkeyUnitySimHandler(IMesgHandler):
         # It should be setup in the 4 scenes available now.
         if "cte" in data:
             self.cte = data["cte"]
+            # print(self.cte)
 
         # don't update hit once session over
         if self.over:
