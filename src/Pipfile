@@ -6,10 +6,14 @@ verify_ssl = true
 [dev-packages]
 
 [packages]
-gym-donkeycar = {editable = true, path = "./third_party/gym-donkeycar"}
 opencv-python = "*"
 torch = "*"
 torchvision = "*"
+tensorflow = "*"
 
 [requires]
 python_version = "3.8"
+
+[packages.gym-donkeycar]
+editable = true
+path = "./third_party/gym-donkeycar"

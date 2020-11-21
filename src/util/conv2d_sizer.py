@@ -1,11 +1,11 @@
 
-h_in = 5
-w_in = 10
+h_in = 32
+w_in = 32
 
 padding = 0
 dilation = 1
-stride = 5
-kernel = 5
+stride = 2
+kernel = 4
 
 h_out = (h_in + 2*padding - dilation*(kernel - 1) - 1) / stride
 h_out += 1

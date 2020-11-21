@@ -1,6 +1,6 @@
 import gym
 import gym_donkeycar
-import reinforcement_learning.ddqn as dq
+import examples.reinforcement_learning.ddqn as dq
 
 
 from PolicyGradientMethods.common.utils import mini_batch_train  # import training function
