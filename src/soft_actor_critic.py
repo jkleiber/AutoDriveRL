@@ -100,7 +100,7 @@ class SoftActorCriticAgent(Agent):
             self.vae_optimizer.step()
         print(f'VAE Loss: {total_loss.mean()}')
 
-    def act(self, obsv, cur_action):
+    def act(self, obsv, cur_action, eval_mode):
         # Convert the observed state to a torch tensor
         input_data = np.copy(obsv)
         input_data.setflags(write=1)
@@ -118,8 +118,11 @@ class SoftActorCriticAgent(Agent):
         mean, std = self.policy_network(latent_t)
 
         # Decode the action from the given distribution estimate
-        raw_action = self.decode_action(mean, std).flatten()
-        raw_action = raw_action.detach().numpy()
+        if eval_mode is False:
+            raw_action = self.decode_action(mean, std).flatten()
+            raw_action = raw_action.detach().numpy()
+        else:
+            raw_action = mean.detach().numpy()
 
         # scale action to be between 0 and 1
         action = np.array([raw_action[0], 0.05])
