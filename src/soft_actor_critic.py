@@ -15,7 +15,7 @@ from vae import VAE
 class SoftActorCriticAgent(Agent):
     MAX_THROTTLE = 0.25
     MIN_THROTTLE = 0.0
-    STEER_CONST = 1
+    STEER_CONST = 0.4
 
     def __init__(self, batch_size=64, alpha_lr=3e-4, soft_q_lr = 3e-4, policy_lr = 3e-4, vae_lr = 3e-4, tau = 0.005, gamma = 0.99,
                  eps = 1e-6, alpha = 1.0, num_updates = 1, max_replay_size = 50000, save_path = 'soft_actor_critic/'):
@@ -122,12 +122,14 @@ class SoftActorCriticAgent(Agent):
             raw_action = self.decode_action(mean, std).flatten()
             raw_action = raw_action.detach().numpy()
         else:
-            raw_action = mean.detach().numpy()
+            raw_action = torch.tanh(mean)
+            raw_action = raw_action.detach().numpy()
+            raw_action = raw_action[0]
 
         # scale action to be between 0 and 1
-        action = np.array([raw_action[0], 0.05])
-        # action[1] = 0.05#((self.MAX_THROTTLE - self.MIN_THROTTLE) / 2.0) * action[1] + ((self.MAX_THROTTLE - self.MIN_THROTTLE) / 2.0)
-        # action[0] = cur_action[0] + self.STEER_CONST*(action[0] - cur_action[0])
+        action = raw_action
+        action[1] = ((self.MAX_THROTTLE - self.MIN_THROTTLE) / 2.0) * action[1] + ((self.MAX_THROTTLE - self.MIN_THROTTLE) / 2.0)
+        action[0] = cur_action[0] + self.STEER_CONST*(action[0] - cur_action[0])
 
         return action, raw_action
 
@@ -195,7 +197,7 @@ class SoftActorCriticAgent(Agent):
 
             # Train the VAE
             # Uncomment to train the VAE
-            # self.train_vae(state_t)
+            self.train_vae(state_t)
 
             # Create a batch of latent_tensors
             latent_t = self.vae_net(state_t).detach()
@@ -299,8 +301,8 @@ class PolicyNetwork(nn.Module):
         # Linear layers to get to output of 2x1
         self.linear1 = nn.Linear(input_size, self.hidden_size)
         self.linear2 = nn.Linear(self.hidden_size, self.hidden_size)
-        self.mean_layer = nn.Linear(self.hidden_size, 1)
-        self.log_layer = nn.Linear(self.hidden_size, 1)
+        self.mean_layer = nn.Linear(self.hidden_size, 2)
+        self.log_layer = nn.Linear(self.hidden_size, 2)
 
         # Weight initialization
         self.mean_layer.weight.data.uniform_(-init_weight, init_weight)
@@ -344,7 +346,7 @@ class PolicyNetwork(nn.Module):
 class SoftQFunctionNetwork(nn.Module):
     def __init__(self, init_weight = 3e-3):
         super(SoftQFunctionNetwork, self).__init__()
-        action_size = 1
+        action_size = 2
         input_size = (120 * 160 * 1) + action_size
         hidden_size = 64
         self.linear1 = nn.Linear(input_size, hidden_size)

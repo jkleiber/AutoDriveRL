@@ -11,16 +11,11 @@ from math import fabs
 from agent import Agent
 from soft_actor_critic import SoftActorCriticAgent
 
-# Initialize Environment
-exe_path = f"./simulator/donkey_sim.x86_64"
-port = 9091
-conf = { "exe_path" : exe_path, "port" : port, "host" : '127.0.0.1' }
-env = gym.make("donkey-generated-roads-v0", conf=conf)
-
 # Training parameters
 XTK_POS_THRESH = 0.25
 MAX_RESET_EPISODES = 10
 EVAL_INTERVAL = 5
+MAX_CTE = 2.0
 
 # def reward_fn(action, info, crashed):
 #     # Car stats
@@ -79,6 +74,12 @@ def calc_reward(self, d):
 
 
 def train(agent, num_episodes, time_limit):
+    # Initialize Environment
+    exe_path = f"./simulator/donkey_sim.x86_64"
+    port = 9091
+    conf = { "exe_path" : exe_path, "port" : port, "host" : '127.0.0.1' }
+    env = gym.make("donkey-generated-roads-v0", conf=conf)
+
     # Keep track of reward per episode
     rewards = []
     pos = (0.0, 0.0, 0.0)
@@ -97,8 +98,9 @@ def train(agent, num_episodes, time_limit):
         t = 0
 
         eval_mode = False
-        if e % EVAL_INTERVAL == 0:
-            eval_mode = True
+        # if e % EVAL_INTERVAL == 0:
+        #     eval_mode = True
+        #     print("EVALUATION EPISODE")
 
         # Convert first observation to grayscale
         # old_obsv = cv2.cvtColor(old_obsv, cv2.COLOR_BGR2GRAY)
@@ -134,6 +136,8 @@ def train(agent, num_episodes, time_limit):
             # End episode if the car has failed miserably
             # if reward < 0:
             #     done = True
+            if fabs(info['cte']) > MAX_CTE:
+                done = True
 
             # Update the agent with this new experience.
             agent.add_experience(obsv, raw_action, reward, save_obsv, done)
@@ -163,10 +167,15 @@ def train(agent, num_episodes, time_limit):
         # Track the reward
         rewards.append(total_reward)
 
-        # Periodically save the agent's network data
-        if e % 25 == 0:
-            agent.save_weights()
-            pickle.dump(rewards, open("soft_actor_critic/sac_reward.pkl", 'wb'))
+        # Save the agent's network data
+        agent.save_weights()
+        pickle.dump(rewards, open("soft_actor_critic/sac_reward.pkl", 'wb'))
+
+        # if e % 10 == 0:
+        #     # give random new env (prevent overfitting)
+        #     env.unwrapped.close()
+        #     env = gym.make("donkey-generated-roads-v0", conf=conf)
+        #     env.set_reward_fn(calc_reward)
 
         # Update the agent
         agent.update()
@@ -194,7 +203,7 @@ def train(agent, num_episodes, time_limit):
 if __name__ == "__main__":
     # Setup SAC with pretrained VAE
     agent = SoftActorCriticAgent()
-    agent.init_with_saved_weights()
+    # agent.init_with_saved_weights()
 
     # Train the agent
-    train(agent, 500, 2000)
+    train(agent, 400, 2000)

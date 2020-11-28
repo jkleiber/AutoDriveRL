@@ -92,6 +92,7 @@ def run_ppo(args):
         #Make an environment test our trained policy
         env = gym.make(args[argsEnvNameIdx], conf=conf)
         model = PPO.load("ppo_donkey")
+        done = False
     
         obs = env.reset()
         while not done:

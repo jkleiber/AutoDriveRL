@@ -13,6 +13,7 @@ tensorflow = "*"
 tensorflow-gpu = "*"
 gym-donkeycar = {editable = true, path = "./third_party/gym-donkeycar"}
 stable-baselines3 = {editable = true, path = "./third_party/stable-baselines3"}
+matplotlib = "*"
 
 [requires]
 python_version = "3.8"
