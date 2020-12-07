@@ -29,8 +29,9 @@ import gym_donkeycar
 
 EPISODES = 10000
 img_rows, img_cols = 32, 32
+#extract only yellow and convert to balck and white small array with simple features to improve performace
 # Convert image into Black and white
-img_channels = 16 # We stack 4 frames
+img_channels = 16 # stack 16 frames ~.5 seconds of video
 
 class DQNAgent:
 
@@ -54,9 +55,9 @@ class DQNAgent:
             self.epsilon = 1e-6
             self.initial_epsilon = 1e-6
         self.epsilon_min = 0.02
-        self.batch_size = 32
-        self.train_start = 100
-        self.explore = 8000
+        self.batch_size = 32 # number of frames to preform grad desent on
+        self.train_start = 100 # number of frames before training starts
+        self.explore = 8000 # rate at which actions transition from random to determined
 
         # Create replay memory using deque
         self.memory = deque(maxlen=5000)
@@ -71,6 +72,7 @@ class DQNAgent:
 
 
     def build_model(self):
+        # Use CNN to map 32,32 image into 15 discreate actions
         model = Sequential()
         model.add(Conv2D(24, (5, 5), strides=(2, 2), padding="same",input_shape=(img_rows,img_cols,img_channels)))  #80*80*4
         model.add(Activation('relu'))
@@ -245,6 +247,7 @@ def run_ddqn(args):
     env = gym.make(args[argsEnvNameIdx], conf=conf)
     last = [0,0,0,0]
     def calc_reward(self, d):
+        # define a new reward function
         if d:
             return -1.0
 
@@ -261,7 +264,7 @@ def run_ddqn(args):
         delCte = self.cte - last[0]
         delAbsCte = abs(last[0]) - abs(self.cte)
         distDelta = np.linalg.norm(np.array([self.x,self.y,self.z])-np.array([last[1],last[2],last[3]]))
-        headErr = np.rad2deg(np.arcsin(delCte/distDelta))
+        headErr = np.rad2deg(np.arcsin(delCte/distDelta)) # calculate the heading error of the cart
 
         if headErr == 0:
             headErr = .001
@@ -276,6 +279,7 @@ def run_ddqn(args):
         # if headErr > 45:
         #     return -1000
         #return delAbsCte
+        # calculate reward function that accounts for heading and cross track errors
         return 10-abs(headErr) +min(100,1/abs(max(.01,.1*self.cte**2))) #+ 10/abs(headErr) #derivitive of cte like heading error
 
     env.set_reward_fn(calc_reward)
@@ -315,10 +319,10 @@ def run_ddqn(args):
             episode_len = 0
 
             #obs = ImgAug.preProcessRGB(obs)
-            obs = ImgAug.detectYellow(obs)
-            x_t = agent.process_image(obs)
+            obs = ImgAug.detectYellow(obs)#given simulated camera frame detect center line
+            x_t = agent.process_image(obs)#resize to 32x32
 
-            s_t = np.stack([x_t for x in range(img_channels)],axis=2)
+            s_t = np.stack([x_t for x in range(img_channels)],axis=2) # stack last n frames
             # In Keras, need to reshape
             s_t = s_t.reshape(1, s_t.shape[0], s_t.shape[1], s_t.shape[2]) #1*80*80*4
 
