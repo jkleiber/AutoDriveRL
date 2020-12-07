@@ -13,15 +13,16 @@ from agent import Agent
 from vae import VAE
 
 class SoftActorCriticAgent(Agent):
-    MAX_THROTTLE = 0.5
+    MAX_THROTTLE = 0.25
     MIN_THROTTLE = 0.0
-    STEER_CONST = 1
+    STEER_CONST = 0.4
 
     def __init__(self, batch_size=64, alpha_lr=3e-4, soft_q_lr = 3e-4, policy_lr = 3e-4, vae_lr = 3e-4, tau = 0.005, gamma = 0.99,
                  eps = 1e-6, alpha = 1.0, num_updates = 1, max_replay_size = 50000, save_path = 'soft_actor_critic/'):
         # See if we can do GPU training
         self.cuda_available = torch.cuda.is_available()
-        self.device = torch.device("cuda" if self.cuda_available else "cpu")
+        self.device = torch.device("cpu") # Need to figure out cuda
+        # self.device = torch.device("cuda" if self.cuda_available else "cpu")
 
         # Start with the replay pool empty
         self.replay_pool = []
@@ -99,7 +100,7 @@ class SoftActorCriticAgent(Agent):
             self.vae_optimizer.step()
         print(f'VAE Loss: {total_loss.mean()}')
 
-    def act(self, obsv, cur_action):
+    def act(self, obsv, cur_action, eval_mode):
         # Convert the observed state to a torch tensor
         input_data = np.copy(obsv)
         input_data.setflags(write=1)
@@ -117,8 +118,13 @@ class SoftActorCriticAgent(Agent):
         mean, std = self.policy_network(latent_t)
 
         # Decode the action from the given distribution estimate
-        raw_action = self.decode_action(mean, std).flatten()
-        raw_action = raw_action.detach().numpy()
+        if eval_mode is False:
+            raw_action = self.decode_action(mean, std).flatten()
+            raw_action = raw_action.detach().numpy()
+        else:
+            raw_action = torch.tanh(mean)
+            raw_action = raw_action.detach().numpy()
+            raw_action = raw_action[0]
 
         # scale action to be between 0 and 1
         action = raw_action
@@ -190,6 +196,7 @@ class SoftActorCriticAgent(Agent):
             self.q_optimizer_2.step()
 
             # Train the VAE
+            # Uncomment to train the VAE
             self.train_vae(state_t)
 
             # Create a batch of latent_tensors
@@ -339,7 +346,8 @@ class PolicyNetwork(nn.Module):
 class SoftQFunctionNetwork(nn.Module):
     def __init__(self, init_weight = 3e-3):
         super(SoftQFunctionNetwork, self).__init__()
-        input_size = (120 * 160 * 1) + 2
+        action_size = 2
+        input_size = (120 * 160 * 1) + action_size
         hidden_size = 64
         self.linear1 = nn.Linear(input_size, hidden_size)
         self.linear2 = nn.Linear(hidden_size, hidden_size)

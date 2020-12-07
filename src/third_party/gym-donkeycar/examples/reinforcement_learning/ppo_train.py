@@ -10,31 +10,45 @@ import argparse
 import gym
 import gym_donkeycar
 import uuid
+import ImgAug
+import cv2
+import numpy as np
 
-from stable_baselines.common.policies import MlpPolicy, CnnPolicy, CnnLstmPolicy
-from stable_baselines.common.vec_env import DummyVecEnv, SubprocVecEnv
-from stable_baselines.common import set_global_seeds
-from stable_baselines import PPO2
-
-def make_env(env_id, rank, seed=0):
-    """
-    Utility function for multiprocessed env.
-    
-    :param env_id: (str) the environment ID
-    :param num_env: (int) the number of environment you wish to have in subprocesses
-    :param seed: (int) the inital seed for RNG
-    :param rank: (int) index of the subprocess
-    """
-    def _init():
-        env = gym.make(env_id)
-        env.seed(seed + rank)
-        env.reset()
-        return env
-    set_global_seeds(seed)
-    return _init
+from stable_baselines3 import PPO
 
 
-if __name__ == "__main__":
+last = [0,0,0,0]
+def calc_reward(self, d):
+    if d:
+        return -1.0
+    if self.cte > self.max_cte:
+        return -1.0
+    if self.hit != "none":
+        return -2.0
+    # going fast close to the center of lane yeilds best reward
+    if self.cte== 0:
+        return 0
+    #print(last)
+    delCte = self.cte - last[0]
+    delAbsCte = abs(last[0]) - abs(self.cte)
+    distDelta = np.linalg.norm(np.array([self.x,self.y,self.z])-np.array([last[1],last[2],last[3]]))
+    headErr = np.rad2deg(np.arcsin(delCte/distDelta))
+    if headErr == 0:
+        headErr = .001
+    if np.isnan(headErr):
+        headErr = 1000
+    #print('heading err' + str(headErr))
+    last[0] = self.cte
+    last[1] = self.x
+    last[2] = self.y
+    last[3] = self.z
+    # if headErr > 45:
+    #     return -1000
+    #return delAbsCte
+    return 10-abs(headErr) +min(100,1/abs(max(.01,.1*self.cte**2))) #+ 10/abs(headErr) #derivitive of cte like heading error
+
+
+def run_ppo(args):
 
 	# Initialize the donkey environment
     # where env_name one of:    
@@ -45,25 +59,19 @@ if __name__ == "__main__":
        "donkey-generated-track-v0",
        "donkey-mountain-track-v0"
     ]
-	
-    parser = argparse.ArgumentParser(description='ppo_train')
-    parser.add_argument('--sim', type=str, default="sim_path", help='path to unity simulator. maybe be left at manual if you would like to start the sim on your own.')
-    parser.add_argument('--port', type=int, default=9091, help='port to use for tcp')
-    parser.add_argument('--test', action="store_true", help='load the trained model and play')
-    parser.add_argument('--multi', action="store_true", help='start multiple sims at once')
-    parser.add_argument('--env_name', type=str, default='donkey-mountain-track-v0', help='name of donkey sim environment', choices=env_list)
-    
-    args = parser.parse_args()
 
-    if args.sim == "sim_path" and args.multi:
-        print("you must supply the sim path with --sim when running multiple environments")
-        exit(1)
+    argsSimIdx = 0
+    argsWeightPathIdx =1
+    argsTestBoolIdx = 2
+    argsportIdx = 3
+    argsThrottleIdx = 4
+    argsEnvNameIdx = 5
     
-    env_id = args.env_name
+    env_id = args[argsEnvNameIdx]
 
-    conf = {"exe_path" : args.sim, 
+    conf = {"exe_path" : args[argsSimIdx],
         "host" : "127.0.0.1",
-        "port" : args.port,
+        "port" : args[argsportIdx],
 
         "body_style" : "donkey",
         "body_rgb" : (128, 128, 128),
@@ -75,22 +83,21 @@ if __name__ == "__main__":
         "bio" : "Learning to drive w PPO RL",
         "guid" : str(uuid.uuid4()),
 
-        "max_cte" : 10,
+        "max_cte" : 5,
         }
-    
 
-    if args.test:
-
+    # TODO: This is for testing, but not implemented yet
+    if args[argsTestBoolIdx]:
+        print('Entering Test mode')
         #Make an environment test our trained policy
-        env = gym.make(args.env_name, conf=conf)
-        env = DummyVecEnv([lambda: env])
-
-        model = PPO2.load("ppo_donkey")
+        env = gym.make(args[argsEnvNameIdx], conf=conf)
+        model = PPO.load("ppo_donkey")
+        done = False
     
         obs = env.reset()
-        for i in range(1000):
+        while not done:
             action, _states = model.predict(obs)
-            obs, rewards, dones, info = env.step(action)
+            obs, rewards, done, info = env.step(action)
             env.render()
 
         print("done testing")
@@ -98,39 +105,40 @@ if __name__ == "__main__":
     else:
     
         #make gym env
-        env = gym.make(args.env_name, conf=conf)
+        env = gym.make(args[argsEnvNameIdx], conf=conf)
 
-        # Create the vectorized environment
-        env = DummyVecEnv([lambda: env])
+        # Set reward function
+        env.set_reward_fn(calc_reward)
 
         #create cnn policy
-        model = PPO2(CnnPolicy, env, verbose=1)
-
+        model = PPO('CnnPolicy', env, verbose=1)
 
         #set up model in learning mode with goal number of timesteps to complete
-        model.learn(total_timesteps=10000)
+        model.learn(total_timesteps=100000)
+        print('training over')
+        model.save("ppo_donkey")
 
         obs = env.reset()
         
-        for i in range(1000):
-            
-            action, _states = model.predict(obs)
-            
-            obs, rewards, dones, info = env.step(action)
-            
-            try:
-                env.render()
-            except Exception as e:
-                print(e)
-                print("failure in render, continuing...")
+        # num_episodes = 1000
+        # for e in range(num_episodes):
+        #     while not done:
+        #         action, _states = model.predict(obs)
                 
-            if i % 100 == 0:
-                print('saving...')
-                model.save("ppo_donkey")
+        #         obs, rewards, done, info = env.step(action) 
+                    
+        #     # Save the current model
+        #     model.save("ppo_donkey")
 
-        # Save the agent
-        model.save("ppo_donkey")
-        print("done training")
+        #     if e % 10 == 0:
+        #         # give random new env (prevent overfitting)
+        #         env.unwrapped.close()
+        #         env = gym.make(args[argsEnvNameIdx], conf=conf)
+        #         env.set_reward_fn(calc_reward)
+
+        # # Save the agent
+        # model.save("ppo_donkey")
+        # print("done training")
 
 
     env.close()
