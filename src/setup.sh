@@ -15,3 +15,6 @@ wget https://github.com/tawnkramer/gym-donkeycar/releases/download/v20.9.9/Donke
 unzip DonkeySimLinux.zip
 mv DonkeySimLinux simulator
 rm DonkeySimLinux.zip
+
+# Install any packages that failed initially
+pipenv sync

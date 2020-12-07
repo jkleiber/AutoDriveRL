@@ -49,7 +49,9 @@ pipenv run python ppo_sb3.py
 ```
 This is based on stable-baselines3. To evaluate this algorithm you can set `runTest = True` in `ppo_sb3.py`.
 
-## Common Problems
+## Common Troubleshooting Solutions
+If there is an error with not being able to find some package, run `pipenv sync` and any missing packages should be installed.  
+
 Sometimes the simulator will open and then close when you are training / evaluating. Just retry the command you are running and it will work eventually. This is caused by some TCP handshaking the simulator and the gym have to do and sometimes the operating system will block it for too long and the simulator will give up.
 
 ## Pre-trained Networks
