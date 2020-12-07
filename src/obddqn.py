@@ -3,9 +3,6 @@ import gym_donkeycar
 import examples.reinforcement_learning.ddqn as dq
 
 
-from PolicyGradientMethods.common.utils import mini_batch_train  # import training function
-from PolicyGradientMethods.td3.td3 import TD3Agent  # import agent from algorithm of interest
-
 # Create Gym environment
 exe_path = f"./simulator/donkey_sim.x86_64"
 weightPath = 'obddqnAN3.h5'

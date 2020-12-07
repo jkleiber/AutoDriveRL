@@ -17,26 +17,7 @@ MAX_RESET_EPISODES = 10
 EVAL_INTERVAL = 5
 MAX_CTE = 2.0
 
-# def reward_fn(action, info, crashed):
-#     # Car stats
-#     speed = info['speed']
-#     lane_pos = info['cte']
-#     hit = info['hit']
-#     throttle = action[1]
-#     max_cte = 2.0
 
-#     # If the car crashes, return punishment
-#     if crashed or hit != "none":
-#         return -(10.0 + speed * 0.25)
-#     # If out of bounds, return punishment
-#     if fabs(lane_pos) > max_cte:
-#         return -(10.0 + speed * 0.25)
-
-#     # If the car is driving normally, encourage driving fast in the center
-#     lane_reward = (1.0 - fabs(lane_pos) / max_cte)
-#     reward = (lane_reward**4) * speed
-
-#     return reward
 last = [0,0,0,0]
 def calc_reward(self, d):
     if d:
@@ -97,18 +78,6 @@ def train(agent, num_episodes, time_limit):
         action = np.array([0, 0])
         t = 0
 
-        eval_mode = False
-        # if e % EVAL_INTERVAL == 0:
-        #     eval_mode = True
-        #     print("EVALUATION EPISODE")
-
-        # Convert first observation to grayscale
-        # old_obsv = cv2.cvtColor(old_obsv, cv2.COLOR_BGR2GRAY)
-
-        # Set the car position based on the most recent reset
-        # Doesn't work because simulator doesn't let you set position
-        # obsv = env.set_position(pos[0], pos[1], pos[2])
-
         # Run until the car drives off course or a time limit is reached
         while done is False and t <= time_limit:
             # Process the observation
@@ -126,16 +95,10 @@ def train(agent, num_episodes, time_limit):
             # info: some diagnostics about speed, center line, etc.
             new_obsv, reward, done, info = env.step(action)
 
-            # Process the new observation
-            # save_obsv = ImgAug.detectYellow(new_obsv)
-            # save_obsv = cv2.resize(save_obsv, (80, 80))
-
             # Save the image as grayscale
             save_obsv = cv2.cvtColor(new_obsv, cv2.COLOR_BGR2GRAY)
 
             # End episode if the car has failed miserably
-            # if reward < 0:
-            #     done = True
             if fabs(info['cte']) > MAX_CTE:
                 done = True
 
@@ -144,11 +107,6 @@ def train(agent, num_episodes, time_limit):
 
             # Save old observation
             obsv = new_obsv
-
-            # Show what the agent sees.
-            # cv2.imshow('DonkeyCar Camera', obsv)
-            # if cv2.waitKey(1) & 0xFF == ord('q'):
-            #     break
 
             # Update reward
             total_reward += reward
@@ -171,22 +129,8 @@ def train(agent, num_episodes, time_limit):
         agent.save_weights()
         pickle.dump(rewards, open("soft_actor_critic/sac_reward.pkl", 'wb'))
 
-        # if e % 10 == 0:
-        #     # give random new env (prevent overfitting)
-        #     env.unwrapped.close()
-        #     env = gym.make("donkey-generated-roads-v0", conf=conf)
-        #     env.set_reward_fn(calc_reward)
-
         # Update the agent
         agent.update()
-
-
-        # Track number of position resets
-        # num_pos_resets += 1
-
-        # if num_pos_resets > MAX_RESET_EPISODES:
-        #     pos = (0.0, 0.0, 0.0)
-        #     num_pos_resets = 0
 
     # Save the agent's data
     agent.save_weights()
@@ -197,13 +141,10 @@ def train(agent, num_episodes, time_limit):
     # Close the environment after the number of episodes
     env.close()
 
-    # TODO: Plot the reward function
-
 # Main function for training
 if __name__ == "__main__":
-    # Setup SAC with pretrained VAE
+    # Setup SAC
     agent = SoftActorCriticAgent()
-    # agent.init_with_saved_weights()
 
-    # Train the agent
+    # Train the agent for 400 episodes
     train(agent, 400, 2000)
