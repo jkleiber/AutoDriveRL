@@ -19,9 +19,9 @@ If the simulator opens, then you can close it. You're ready to train!
 ## Algorithm Training and Evaluation
 
 There are 3 algorithms available for training:
-* Soft Actor Critic
-* DDQN
-* PPO
+* Soft Actor Critic (see `soft_actor_critic.py` for our custom implementation)
+* DDQN (see `third_party/gym-donkeycar/examples/reinforcement_learning/ddqn.py`) - note, this was starter code we have heavily modified to improve performance on slower computers
+* PPO (see `stable-baselines3`)
 
 To run any algorithm, first make sure you are inside the `src/` directory. Pipenv needs to reference the `Pipfile` in that folder to manage its virtual environment.
 
